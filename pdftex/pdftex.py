@@ -13,6 +13,7 @@ from PIL import Image
 
 import matplotlib as mpl
 from matplotlib import cbook
+from matplotlib._api.deprecation import delete_parameter
 from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, RendererBase)
 from matplotlib.backends.backend_mixed import MixedModeRenderer
@@ -262,7 +263,7 @@ class RendererPdfTex(RendererBase):
         self._has_gouraud = False
         self._n_gradients = 0
         self._fonts = OrderedDict()
-        self.mathtext_parser = MathTextParser('SVG')
+        self.mathtext_parser = MathTextParser('path')
 
         RendererBase.__init__(self)
         self._glyph_map = dict()
@@ -1024,11 +1025,14 @@ class RendererPdfTex(RendererBase):
 
         else:
             writer.comment(s)
+            parse_result = self.mathtext_parser.parse(s, 72, prop)
+            width = parse_result.width
+            height = parse_result.height
+            descent = parse_result.depth
+            svg_glyphs = parse_result.glyphs
+            svg_rects = parse_result.rects
 
-            width, height, descent, svg_elements, used_characters = \
-                self.mathtext_parser.parse(s, 72, prop)
-            svg_glyphs = svg_elements.svg_glyphs
-            svg_rects = svg_elements.svg_rects
+            print(svg_glyphs)
 
             attrib = {}
             attrib['style'] = generate_css(style)
@@ -1044,7 +1048,7 @@ class RendererPdfTex(RendererBase):
 
             # Sort the characters by font, and output one tspan for each.
             spans = OrderedDict()
-            for font, fontsize, thetext, new_x, new_y, metrics in svg_glyphs:
+            for font, fontsize, thetext, new_x, new_y in svg_glyphs:
                 style = generate_css({
                     'font-size': short_float_fmt(fontsize) + 'px',
                     'font-family': font.family_name,
@@ -1087,7 +1091,7 @@ class RendererPdfTex(RendererBase):
 
             writer.end('g')
 
-    @cbook._delete_parameter("3.3", "ismath")
+    @delete_parameter("3.3", "ismath")
     def draw_tex(self, gc, x, y, s, prop, angle, ismath='TeX!', mtext=None):
         # docstring inherited
         self._draw_text_as_path(gc, x, y, s, prop, angle, ismath="TeX")
@@ -1105,6 +1109,7 @@ class RendererPdfTex(RendererBase):
         if gc.get_url() is not None:
             self.writer.start('a', {'xlink:href': gc.get_url()})
 
+        print(mpl.rcParams['svg.fonttype'])
         if mpl.rcParams['svg.fonttype'] == 'path':
             self._draw_text_as_path(gc, x, y, s, prop, angle, ismath, mtext)
         else:
